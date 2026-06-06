@@ -70,37 +70,6 @@ npm run tauri build
 # → src-tauri/target/release/bundle/ 以下に成果物が生成される
 ```
 
-## ビルド手順(Windows)
-
-Windowsで環境構築して同じ手順でビルドします
-
-```powershell
-powershell# Rustインストール (rustup-init.exe)
-# Node.jsインストール
-# Tauri CLIインストール
-cargo install tauri-cli --version "^2"
-
-# ビルド
-cargo tauri build
-```
-
-### 成果物:
-
-```
-src-tauri/target/release/bundle/
-└── msi/dp100-gui_0.1.0_x64_en-US.msi  ← インストーラー
-└── nsis/dp100-gui_0.1.0_x64-setup.exe ← インストーラー
-```
-
-### Windowsでの注意点
-HIDアクセスはWindowsでは管理者権限不要ですが、`hidapi` のWindows向けビルドに追加依存が必要です:
-
-```toml
-# Cargo.toml
-[target.'cfg(windows)'.dependencies]
-hidapi = { version = "2.6", features = ["windows-native"] }
-```
-
 ## UI 説明
 
 ```
