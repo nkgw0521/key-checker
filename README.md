@@ -70,6 +70,63 @@ npm run tauri build
 # → src-tauri/target/release/bundle/ 以下に成果物が生成される
 ```
 
+WindowsへのクロスコンパイルはLinuxからだと現実的に難しいです。**Windows環境でビルドするのが確実**です。
+
+## Windows環境でのビルド手順
+
+### 1. 必要ツールのインストール
+
+**Rust**
+```powershell
+# https://rustup.rs/ からインストーラをダウンロードして実行
+# インストール時のオプションはデフォルトでOK
+rustup --version  # 確認
+```
+
+**Node.js**
+```powershell
+# https://nodejs.org/ からLTS版をダウンロードして実行
+node --version  # 確認
+```
+
+**WebView2ランタイム**（Windows 11は標準搭載、Windows 10は要インストール）
+```
+https://developer.microsoft.com/ja-jp/microsoft-edge/webview2/
+```
+
+**Visual Studio Build Tools**（Rustのコンパイルに必要）
+```
+https://visualstudio.microsoft.com/ja/visual-cpp-build-tools/
+インストール時に「C++によるデスクトップ開発」にチェック
+```
+
+---
+
+### 2. リポジトリをクローン
+
+```powershell
+git clone git@github.com:nkgw0521/key-checker.git
+cd key-checker
+```
+
+---
+
+### 3. ビルド
+
+```powershell
+npm install
+npm run tauri build
+```
+
+成果物は以下に生成されます：
+```
+src-tauri/target/release/bundle/
+├── msi/
+│   └── key-checker_0.1.0_x64_en-US.msi   # インストーラ
+└── nsis/
+    └── key-checker_0.1.0_x64-setup.exe    # インストーラ
+```
+
 ## UI 説明
 
 ```
