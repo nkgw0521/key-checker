@@ -23,10 +23,10 @@ key-checker/
 
 ## 動作原理
 
-| OS      | 方式                                | 備考                                      |
-|---------|-------------------------------------|-------------------------------------------|
-| Linux   | `evdev` で `/dev/input/event*` を読む | `input` グループへの追加 or sudo が必要    |
-| Windows | `SetWindowsHookExW(WH_KEYBOARD_LL)` | 管理者権限不要（通常ユーザーで動作）        |
+| OS      | 方式                                | 備考                                          |
+|---------|-------------------------------------|-----------------------------------------------|
+| Linux   | `evdev` で `/dev/input/event*` を読む | udevルール設定 or input グループへの追加が必要 |
+| Windows | `SetWindowsHookExW(WH_KEYBOARD_LL)` | 管理者権限不要（通常ユーザーで動作）            |
 
 ## ビルド手順
 
@@ -48,13 +48,80 @@ sudo dnf install webkit2gtk4.1-devel gtk3-devel libappindicator-gtk3-devel librs
 
 ### /dev/input 権限設定（Linux）
 
+**udevルールで設定する（推奨）**
+
 ```bash
-# 現在のユーザーを input グループに追加（再ログインが必要）
+sudo tee /etc/udev/rules.d/99-key-checker.rules << 'EOF'
+KERNEL=="event*", SUBSYSTEM=="input", GROUP="input", MODE="0664"
+EOF
+
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+
+# 確認（crw-rw-r-- となっていればOK）
+ls -la /dev/input/event0
+```
+
+**inputグループに追加する場合**
+
+```bash
 sudo usermod -aG input $USER
 
-# 確認
-groups
+# グループへの追加を確認
+grep input /etc/group
+# → input:x:996:ユーザー名 と出ればOK
+
+# ディスプレイマネージャを再起動（セッションが終了するので作業を保存してから）
+sudo systemctl restart gdm3    # GNOMEの場合
+sudo systemctl restart lightdm # LXDEなどの場合
+
+# 再ログイン後に確認
+groups  # input が含まれていればOK
 ```
+
+> **注意**: `usermod` 後に `groups` へ反映されない場合はudevルール方式を使ってください。
+> PAMの設定によってはディスプレイマネージャ再起動後も反映されないことがあります。
+
+### アイコンファイルの生成
+
+`tauri::generate_context!()` はコンパイル時にアイコンファイルを要求します。
+`npm run tauri icon` コマンドで生成するのが正規の方法ですが、元画像がない場合は以下で最小限のアイコンを生成できます。
+
+```bash
+# npm install 後に実行
+npm install
+
+# 元画像（1024x1024推奨）から全サイズ自動生成
+npm run tauri icon path/to/your-icon.png
+
+# 元画像がない場合はPythonで生成
+python3 - <<'EOF'
+import struct, zlib, os, shutil
+
+os.makedirs("src-tauri/icons", exist_ok=True)
+
+def make_rgba_png(size):
+    def chunk(name, data):
+        c = zlib.crc32(name + data) & 0xFFFFFFFF
+        return struct.pack('>I', len(data)) + name + data + struct.pack('>I', c)
+    sig = b'\x89PNG\r\n\x1a\n'
+    ihdr = chunk(b'IHDR', struct.pack('>IIBBBBB', size, size, 8, 6, 0, 0, 0))
+    raw = b''.join(b'\x00' + bytes([110, 231, 247, 255] * size) for _ in range(size))
+    idat = chunk(b'IDAT', zlib.compress(raw))
+    iend = chunk(b'IEND', b'')
+    return sig + ihdr + idat + iend
+
+for name, sz in [("32x32", 32), ("128x128", 128), ("128x128@2x", 256)]:
+    with open(f"src-tauri/icons/{name}.png", "wb") as f:
+        f.write(make_rgba_png(sz))
+
+shutil.copy("src-tauri/icons/128x128.png", "src-tauri/icons/icon.icns")
+shutil.copy("src-tauri/icons/32x32.png",   "src-tauri/icons/icon.ico")
+print("Icons generated")
+EOF
+```
+
+> **注意**: PNGはRGBA形式である必要があります。RGB形式だとコンパイルエラーになります。
 
 ### ビルド & 起動
 
@@ -100,16 +167,12 @@ https://visualstudio.microsoft.com/ja/visual-cpp-build-tools/
 インストール時に「C++によるデスクトップ開発」にチェック
 ```
 
----
-
 ### 2. リポジトリをクローン
 
 ```powershell
 git clone git@github.com:nkgw0521/key-checker.git
 cd key-checker
 ```
-
----
 
 ### 3. ビルド
 
@@ -175,12 +238,25 @@ src-tauri/target/release/bundle/
 # /dev/input の権限確認
 ls -la /dev/input/event*
 
-# input グループ確認
-groups
+# inputグループへの追加確認（groupsコマンドではなくこちらで確認）
+grep input /etc/group
+
+# udevルールが適用されているか確認
+cat /etc/udev/rules.d/99-key-checker.rules
 
 # デバイス確認（evtest が使える場合）
 evtest
 ```
+
+### Linux: groupsにinputが反映されない
+
+`usermod` でグループ追加済みでも `groups` に反映されない場合があります（PAMの設定による）。
+その場合はudevルール方式で対処してください（「/dev/input 権限設定」の推奨手順を参照）。
+
+### Linux: debパッケージでインストールすると動かない
+
+debインストール後にランチャーから起動した場合も同様の権限問題が起きます。
+udevルールを適用することで解決します。
 
 ### Windows: フックが取れない
 
