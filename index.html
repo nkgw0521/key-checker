@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Key Checker</title>
+    <style>
+      /* ============================================================
+         リセット & 全体レイアウト
+         ============================================================ */
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      :root {
+        --bg:          #0d0d0f;
+        --surface:     #18181c;
+        --border:      #2a2a32;
+        --accent:      #6ee7f7;
+        --accent2:     #a78bfa;
+        --text-main:   #f0f0f4;
+        --text-dim:    #6b6b7a;
+        --key-bg:      #22222a;
+        --key-active:  #6ee7f7;
+        --key-mod:     #a78bfa;
+        --radius:      12px;
+        --font-mono:   'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+      }
+
+      html, body {
+        width: 100%; height: 100%;
+        background: var(--bg);
+        color: var(--text-main);
+        font-family: var(--font-mono);
+        user-select: none;
+        overflow: hidden;
+      }
+
+      /* ============================================================
+         メインコンテナ
+         ============================================================ */
+      #app {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        gap: 0;
+      }
+
+      /* ============================================================
+         ヘッダーバー
+         ============================================================ */
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 18px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+
+      header h1 {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-dim);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      /* ステータスドット */
+      #status-dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: #ef4444;
+        transition: background 0.3s;
+        flex-shrink: 0;
+      }
+      #status-dot.active { background: #22c55e; }
+
+      /* 設定ボタン群 */
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      button.icon-btn {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+        border-radius: 6px;
+        padding: 3px 8px;
+        font-size: 11px;
+        cursor: pointer;
+        transition: border-color 0.2s, color 0.2s;
+        font-family: var(--font-mono);
+      }
+      button.icon-btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      button.icon-btn.active-btn {
+        border-color: var(--accent2);
+        color: var(--accent2);
+      }
+
+      /* ============================================================
+         メインキー表示エリア
+         ============================================================ */
+      #key-display-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        position: relative;
+        transition: opacity 0.15s;
+      }
+
+      /* 押下中キーの大きいバッジ群 */
+      #key-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+        align-items: center;
+        min-height: 90px;
+      }
+
+      .key-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--key-bg);
+        border: 2px solid var(--accent);
+        border-radius: 10px;
+        padding: 12px 22px;
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--accent);
+        letter-spacing: 0.02em;
+        box-shadow: 0 0 18px rgba(110,231,247,0.25);
+        animation: pop-in 0.1s ease-out;
+        transition: all 0.15s;
+      }
+
+      /* 修飾キーは別色 */
+      .key-badge.modifier {
+        color: var(--key-mod);
+        border-color: var(--key-mod);
+        box-shadow: 0 0 18px rgba(167,139,250,0.25);
+        font-size: 22px;
+        padding: 10px 18px;
+      }
+
+      /* 「+」区切り */
+      .key-sep {
+        font-size: 24px;
+        color: var(--text-dim);
+        font-weight: 300;
+        animation: pop-in 0.1s ease-out;
+      }
+
+      @keyframes pop-in {
+        from { transform: scale(0.7); opacity: 0; }
+        to   { transform: scale(1);   opacity: 1; }
+      }
+
+      /* キーを離したときにフェードアウト */
+      #key-display-area.fading #key-badges {
+        animation: fade-out 0.5s ease-out forwards;
+      }
+      @keyframes fade-out {
+        0%   { opacity: 1; }
+        60%  { opacity: 1; }
+        100% { opacity: 0; }
+      }
+
+      /* 何も押されていないときのヒント */
+      #hint {
+        color: var(--text-dim);
+        font-size: 14px;
+        letter-spacing: 0.05em;
+        position: absolute;
+      }
+
+      /* ============================================================
+         最後のキーコンボ表示（小さめ）
+         ============================================================ */
+      #last-combo {
+        font-size: 12px;
+        color: var(--text-dim);
+        text-align: center;
+        padding: 6px 0 4px;
+        letter-spacing: 0.04em;
+        flex-shrink: 0;
+        min-height: 22px;
+      }
+
+      /* ============================================================
+         ログエリア
+         ============================================================ */
+      #log-area {
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        flex-shrink: 0;
+        overflow-y: auto;
+        max-height: 160px;
+        transition: max-height 0.3s;
+      }
+      #log-area.collapsed { max-height: 0; overflow: hidden; }
+
+      #log-list {
+        list-style: none;
+        padding: 6px 12px;
+      }
+
+      #log-list li {
+        font-size: 11px;
+        color: var(--text-dim);
+        line-height: 1.8;
+        border-bottom: 1px solid rgba(255,255,255,0.03);
+        display: flex;
+        gap: 10px;
+      }
+
+      #log-list li .ts {
+        color: #3a3a4a;
+        flex-shrink: 0;
+        min-width: 80px;
+      }
+
+      #log-list li .combo-text {
+        color: var(--text-main);
+      }
+
+      #log-list li .dir-down { color: var(--accent); }
+      #log-list li .dir-up   { color: #444456; }
+
+      /* ============================================================
+         スクロールバー
+         ============================================================ */
+      #log-area::-webkit-scrollbar { width: 4px; }
+      #log-area::-webkit-scrollbar-track { background: transparent; }
+      #log-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div id="status-dot"></div>
+          <h1>Key Checker</h1>
+        </div>
+        <div class="header-right">
+          <button class="icon-btn active-btn" id="btn-log">LOG</button>
+          <button class="icon-btn" id="btn-clear">CLEAR</button>
+        </div>
+      </header>
+
+      <div id="key-display-area">
+        <div id="hint">キーを押してください…</div>
+        <div id="key-badges"></div>
+      </div>
+
+      <div id="last-combo"></div>
+
+      <div id="log-area">
+        <ul id="log-list"></ul>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

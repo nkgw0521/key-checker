@@ -1,0 +1,15 @@
+# /etc/udev/rules.d/99-key-checker.rules
+#
+# key-checker が /dev/input/event* を読めるようにするための udev ルール。
+#
+# インストール手順:
+#   sudo cp 99-key-checker.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules
+#   sudo udevadm trigger
+#   sudo usermod -aG input $USER
+#   # ← 再ログイン後に有効になる
+#
+# 確認:
+#   groups   # "input" が含まれていること
+
+KERNEL=="event*", SUBSYSTEM=="input", GROUP="input", MODE="0660"
