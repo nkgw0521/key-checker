@@ -1,12 +1,14 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  // Tauri が期待するポート
   server: {
     port: 1420,
     strictPort: true,
+    watch: {
+      // node_modules と Rust のビルド成果物を監視対象から除外
+      ignored: ["**/node_modules/**", "**/src-tauri/target/**"],
+    },
   },
-  // 本番ビルド出力先
   build: {
     outDir: "dist",
   },

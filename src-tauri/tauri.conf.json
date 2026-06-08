@@ -19,11 +19,13 @@
         "fullscreen": false,
         "alwaysOnTop": true,
         "transparent": false,
-        "decorations": true
+        "decorations": true,
+        "devtools": true
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "dangerousDisableAssetCspModification": true
     }
   },
   "bundle": {
